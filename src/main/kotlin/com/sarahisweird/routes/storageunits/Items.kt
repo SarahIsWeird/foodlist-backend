@@ -1,19 +1,17 @@
 package com.sarahisweird.routes.storageunits
 
-import com.sarahisweird.data.Item
-import com.sarahisweird.data.Items
-import com.sarahisweird.data.StorageUnit
-import com.sarahisweird.data.StorageUnits
-import com.sarahisweird.routes.getStorageUnit
+import com.sarahisweird.data.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
+import kotlinx.coroutines.launch
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import kotlin.random.Random
 
 data class NewItemDTO(
     val name: String,
@@ -22,20 +20,20 @@ data class NewItemDTO(
 
 fun Route.storedItems() {
     get {
-        val storageUnit = getStorageUnit() ?: return@get
+        val shelf = getShelf() ?: return@get
 
         val items = transaction {
-            Items.join(StorageUnits, JoinType.INNER, additionalConstraint = { Items.inStorageUnit eq storageUnit.id.value })
-                .slice(Items.columns + StorageUnits.columns)
-                .select { Items.inStorageUnit eq storageUnit.id.value }
-                .let { result -> Item.wrapRows(result).toList().map(Item::toDTO) }
+            Items.join(Shelves, JoinType.INNER, additionalConstraint = { Items.inShelf eq shelf.id.value })
+                .slice(Items.columns + Shelves.id)
+                .select { Items.inShelf eq shelf.id.value }
+                .let { result -> Item.wrapRows(result).map(Item::toDTO) }
         }
 
         call.respond(items)
     }
 
     post {
-        val storageUnit = getStorageUnit() ?: return@post
+        val shelf = getShelf() ?: return@post
         val item = call.receive<NewItemDTO>()
 
         if (item.name.length > 25) {
@@ -44,10 +42,10 @@ fun Route.storedItems() {
         }
 
         val createdItem = transaction {
-            Item.new {
+            Item.new(id = Random.nextLong()) {
                 name = item.name
                 description = item.description
-                inStorageUnit = storageUnit.id.value
+                inShelf = shelf.id.value
             }.toDTO()
         }
 
@@ -59,18 +57,23 @@ fun Route.storedItems() {
     }
 }
 
-suspend fun PipelineContext<Unit, ApplicationCall>.getItem(): Item? {
+fun PipelineContext<Unit, ApplicationCall>.getItem(): Item? {
     val iid = call.parameters["iid"]?.toLongOrNull()
 
     if (iid == null) {
-        call.respond(HttpStatusCode.BadRequest, "Bad item ID")
+        launch {
+            call.respond(HttpStatusCode.BadRequest, "Bad item ID")
+        }
+
         return null
     }
 
     val item = transaction { Item.findById(iid) }
 
     if (item == null) {
-        call.respond(HttpStatusCode.NotFound, "Unknown item")
+        launch {
+            call.respond(HttpStatusCode.NotFound, "Unknown item")
+        }
     }
 
     return item
@@ -79,7 +82,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.getItem(): Item? {
 data class PatchItemDTO(
     val name: String?,
     val description: String?,
-    val inStorageUnit: Long?,
+    val inShelf: Long?,
 )
 
 @Suppress("DuplicatedCode")
@@ -94,7 +97,7 @@ fun Route.storedItem() {
         val item = getItem() ?: return@patch
         val patchData = call.receive<PatchItemDTO>()
 
-        if (patchData.name == null && patchData.description == null && patchData.inStorageUnit == null) {
+        if (patchData.name == null && patchData.description == null && patchData.inShelf == null) {
             call.respond(HttpStatusCode.NoContent)
             return@patch
         }
@@ -104,7 +107,7 @@ fun Route.storedItem() {
             return@patch
         }
 
-        if (patchData.inStorageUnit != null && transaction { StorageUnit.findById(patchData.inStorageUnit) } == null) {
+        if (patchData.inShelf != null && transaction { Shelf.findById(patchData.inShelf) } == null) {
             call.respond(HttpStatusCode.NotFound, "The receiving storage unit cannot be found.")
             return@patch
         }
@@ -112,7 +115,7 @@ fun Route.storedItem() {
         transaction {
             if (patchData.name != null) item.name = patchData.name
             if (patchData.description != null) item.description = patchData.description
-            if (patchData.inStorageUnit != null) item.inStorageUnit = patchData.inStorageUnit
+            if (patchData.inShelf != null) item.inShelf = patchData.inShelf
         }
 
         call.respond(item.toDTO())

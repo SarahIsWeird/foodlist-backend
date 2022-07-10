@@ -14,7 +14,7 @@ data class ItemDTO(
 object Items : LongIdTable() {
     val name = varchar("name", 25)
     val description = text("description")
-    val inStorageUnit = long("inStorageUnit")
+    val inShelf = long("inShelf")
 }
 
 class Item(id: EntityID<Long>) : LongEntity(id) {
@@ -22,7 +22,7 @@ class Item(id: EntityID<Long>) : LongEntity(id) {
 
     var name by Items.name
     var description by Items.description
-    var inStorageUnit by Items.inStorageUnit
+    var inShelf by Items.inShelf
 
     fun toDTO() =
         ItemDTO(this.id.value, this.name, this.description)

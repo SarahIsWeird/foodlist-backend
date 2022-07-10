@@ -1,6 +1,7 @@
 package com.sarahisweird.database
 
 import com.sarahisweird.data.Items
+import com.sarahisweird.data.Shelves
 import com.sarahisweird.data.StorageUnits
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -16,7 +17,7 @@ object Database {
         )
 
         transaction {
-            SchemaUtils.create(StorageUnits, Items)
+            SchemaUtils.create(StorageUnits, Shelves, Items)
         }
 
         db

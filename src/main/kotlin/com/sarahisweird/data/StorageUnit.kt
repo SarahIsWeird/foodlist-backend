@@ -21,11 +21,7 @@ data class StorageUnitDTO(
     val name: String,
     val description: String,
     val storageType: StorageType,
-    val items: List<ItemDTO>,
-)
-
-data class StorageUnitListDTO(
-    val storageUnits: List<PartialStorageUnitDTO>,
+    val shelves: List<PartialShelfDTO>,
 )
 
 object StorageUnits : LongIdTable() {
@@ -36,12 +32,10 @@ object StorageUnits : LongIdTable() {
 
 class StorageUnit(id: EntityID<Long>) : LongEntity(id) {
     companion object : LongEntityClass<StorageUnit>(StorageUnits) {
-        fun getStorageListDTO(): StorageUnitListDTO =
+        fun getStorageListDTO(): List<PartialStorageUnitDTO> =
             transaction {
-                StorageUnitListDTO(
-                    StorageUnit.all()
-                        .map(StorageUnit::toPartialDTO)
-                )
+                StorageUnit.all()
+                    .map(StorageUnit::toPartialDTO)
             }
     }
 
@@ -64,10 +58,10 @@ class StorageUnit(id: EntityID<Long>) : LongEntity(id) {
                 this@StorageUnit.name,
                 this@StorageUnit.description,
                 this@StorageUnit.storageType,
-                StorageUnits.join(Items, JoinType.INNER, additionalConstraint = { StorageUnits.id eq Items.inStorageUnit })
-                    .slice(Items.columns + StorageUnits.columns)
-                    .select { Items.inStorageUnit eq this@StorageUnit.id.value }
-                    .let { result -> Item.wrapRows(result).toList().map(Item::toDTO) }
+                StorageUnits.join(Shelves, JoinType.INNER, additionalConstraint = { StorageUnits.id eq Shelves.ofStorageUnit })
+                    .slice(Shelves.columns + StorageUnits.id)
+                    .select { Shelves.ofStorageUnit eq this@StorageUnit.id.value }
+                    .let { result -> Shelf.wrapRows(result).toList().map(Shelf::toPartialDTO) }
             )
         }
 }

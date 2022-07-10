@@ -1,4 +1,4 @@
-package com.sarahisweird.routes
+package com.sarahisweird.routes.storageunits
 
 import com.sarahisweird.data.StorageType
 import com.sarahisweird.data.StorageUnit
@@ -11,6 +11,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import kotlin.random.Random
 
 data class NewStorageUnitDTO(
     val name: String,
@@ -37,7 +38,7 @@ fun Route.storageUnits() {
         }
 
         val newStorageUnit = transaction {
-            StorageUnit.new {
+            StorageUnit.new(id = Random.nextLong()) {
                 this.name = storageUnitInformation.name
                 this.description = storageUnitInformation.description
                 this.storageType = storageUnitInformation.storageType
@@ -103,7 +104,7 @@ fun Route.storageUnit() {
             if (patchData.storageType != null) storageUnit.storageType = patchData.storageType
         }
 
-        call.respond(storageUnit.toDTO())
+        call.respond(storageUnit.toPartialDTO())
     }
 
     delete {
@@ -116,7 +117,7 @@ fun Route.storageUnit() {
         call.respond(HttpStatusCode.NoContent)
     }
 
-    route("items") {
-        storedItems()
+    route("/shelves") {
+        storageShelves()
     }
 }
